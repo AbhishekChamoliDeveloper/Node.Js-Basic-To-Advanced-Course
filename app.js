@@ -1,89 +1,46 @@
-const http = require("http");
+const express = require("express");
 const fs = require("fs");
-const path = require("path");
 
-//  Req -> Request, Res -> Response
-const server = http.createServer((req, res) => {
-  if (req.url === "/image" && req.method === "GET") {
-    const filepath = path.join(__dirname, "image.jpg");
+const app = express();
 
-    const stream = fs.createReadStream(filepath);
+app.use(express.json());
 
-    res.setHeader("Content-Type", "image/jpeg");
-    stream.pipe(res);
-  }
+const users = [
+  { id: 1, name: "Chirag", email: "chirag@gmail.com" },
+  { id: 2, name: "Abhishek", email: "abhishek@gmail.com" },
+];
 
-  if (req.url === "/video" && req.method === "GET") {
-    const filepath = path.join(__dirname, "video.mp4");
-
-    const stream = fs.createReadStream(filepath);
-
-    res.setHeader("Content-Type", "video/mp4");
-    stream.pipe(res);
-  }
-
-  if (req.url === "/document" && req.method === "GET") {
-    const filepath = path.join(__dirname, "document.pdf");
-
-    const stream = fs.createReadStream(filepath);
-
-    res.setHeader("Content-Type", "application/pdf");
-    stream.pipe(res);
-  }
-
-  if (req.url === "/html" && req.method === "GET") {
-    const filepath = path.join(__dirname, "index.html");
-
-    const data = fs.readFileSync(filepath);
-
-    res.setHeader("Content-Type", "text/html");
-    res.end(data);
-  }
+app.get("/", (req, res) => {
+  res.send("hello world!");
 });
 
-server.listen(3000, () => {
+app.get("/users", (req, res) => {
+  res.send(JSON.stringify(users));
+});
+
+app.post("/users", (req, res) => {
+  const user = req.body;
+  users.push(user);
+
+  console.log(users);
+  res.send("User has been uploaded");
+});
+
+app.get("/image", (req, res) => {
+  const filepath = "./image.jpg";
+
+  const stream = fs.createReadStream(filepath);
+  stream.pipe(res);
+});
+
+app.get("/video", (req, res) => {
+  const filepath = "./video.mp4";
+
+  const stream = fs.createReadStream(filepath);
+  stream.pipe(res);
+});
+
+// Listen on Incoming Request (http://localhost:3000)
+app.listen(3000, () => {
   console.log("Server has been started");
 });
-
-// url -> http://localhost:3000 ( Incoming Request Listen)
-// http and https -> http - unsecure & https - secure
-
-// http Request Type
-/*
-
-1. GET - default
-2. DELETE 
-3. POST
-4. PATCH or Update
-
-
-*/
-
-// Routes
-
-/*
-
-www.google.com - Root Url
-www.google.com/accounts - "/accounts" - Route or Path
-www.google.com/accounts/chirag
-www.google.com/accounts/chirag/name
-
-www.youtube.com
-www.youtube.com/video?v=122344
-
-*/
-
-// Route For my Application
-
-/*
-
-http://localhost:3000 - Root Url
-http://localhost:3000/image - GET 
-http://localhost:3000/video -GET
-http://localhost:3000/document- Get
-http://localhost:3000/audio - Get
-
-
-
-
-*/
