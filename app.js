@@ -1,3 +1,4 @@
+const { json } = require("express");
 const express = require("express");
 const fs = require("fs");
 
@@ -5,25 +6,84 @@ const app = express();
 
 app.use(express.json());
 
-const users = [
-  { id: 1, name: "Chirag", email: "chirag@gmail.com" },
-  { id: 2, name: "Abhishek", email: "abhishek@gmail.com" },
-];
-
 app.get("/", (req, res) => {
   res.send("hello world!");
 });
 
-app.get("/users", (req, res) => {
-  res.send(JSON.stringify(users));
+app.get("/users", async (req, res) => {
+  const filepath = "./users.json";
+
+  const data = await fs.promises.readFile(filepath, "utf-8");
+  const users = JSON.parse(data);
+  res.status(200).json(users);
 });
 
-app.post("/users", (req, res) => {
-  const user = req.body;
-  users.push(user);
+app.post("/users", async (req, res) => {
+  const filepath = "./users.json";
+  const data = await fs.promises.readFile(filepath, "utf-8");
+  const users = JSON.parse(data);
 
-  console.log(users);
-  res.send("User has been uploaded");
+  const newUser = req.body;
+  users.push(newUser);
+
+  const userJson = JSON.stringify(users);
+  await fs.promises.writeFile(filepath, userJson, "utf-8");
+
+  console.log(res);
+  res.status(200).json(users);
+});
+
+app.get("/users/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const filepath = "./users.json";
+  const data = await fs.promises.readFile(filepath, "utf-8");
+  const users = JSON.parse(data);
+
+  const userIndex = users.findIndex((user) => user.id === parseInt(id));
+
+  if (userIndex === -1) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  res.status(200).json(users[userIndex]);
+});
+
+app.patch("/users/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const filepath = "./users.json";
+  const data = await fs.promises.readFile(filepath, "utf-8");
+  const users = JSON.parse(data);
+
+  const userIndex = users.findIndex((user) => user.id === parseInt(id));
+
+  if (userIndex === -1) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const updatedUser = { ...users[userIndex], ...req.body };
+  users[userIndex] = updatedUser;
+
+  const userJson = JSON.stringify(users);
+  await fs.promises.writeFile(filepath, userJson, "utf-8");
+
+  res.status(202).json(updatedUser);
+});
+
+app.delete("/users/:id", async (req, res) => {
+  const id = req.params.id;
+
+  const filepath = "./users.json";
+  const data = await fs.promises.readFile(filepath, "utf-8");
+  let users = JSON.parse(data);
+
+  users = users.filter((user) => user.id !== parseInt(id));
+
+  const userJson = JSON.stringify(users);
+  await fs.promises.writeFile(filepath, userJson, "utf-8");
+
+  res.status(200).json();
 });
 
 app.get("/image", (req, res) => {
