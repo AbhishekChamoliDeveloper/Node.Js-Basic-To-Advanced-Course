@@ -17,6 +17,8 @@
   },
   "homepage": "https://github.com/AbhishekChamoliDeveloper/Node.Js-Basic-To-Advanced-Course#readme",
   "dependencies": {
-    "express": "^4.18.2"
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "mongoose": "^6.10.0"
   }
 }
