@@ -1,8 +1,16 @@
 const validator = require("validator");
 const bcrypt = require("bcrypt");
+const cloudinary = require("cloudinary").v2;
 const fs = require("fs");
-
 const User = require("../models/userModel");
+
+require("dotenv").config();
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUDNAME,
+  api_key: process.env.CLOUDINARY_APIKEY,
+  api_secret: process.env.CLOUDINARY_APISECRET,
+});
 
 // Getting All Users Informations
 exports.getAllUsers = async (req, res) => {
@@ -139,7 +147,7 @@ exports.deleteUserById = async (req, res) => {
 // Upload Photo
 exports.uploadUserPhotoByID = async (req, res) => {
   const id = req.params.id;
-  const profile = req.file;
+  const profileToUpload = req.file;
 
   const user = await User.findOne({ _id: id });
 
@@ -147,26 +155,33 @@ exports.uploadUserPhotoByID = async (req, res) => {
     res.status(400).json({ message: "User not found with this id" });
   }
 
-  const profilePath = `./uploads/${user._id}-${profile.originalname}`;
+  const profileName = `${user._id}-${profileToUpload.originalname}`;
 
-  console.log(profilePath);
-
-  const writeStream = fs.createWriteStream(profilePath);
+  const writeStream = fs.createWriteStream(`./upload/${profileName}`);
 
   writeStream.on("finish", async () => {
-    user.profile = `${user._id}-${profile.originalname}`;
+    const uploadResult = await cloudinary.uploader.upload(
+      `./upload/${profileName}`,
+      {
+        folder: "Dev",
+        public_id: profileName,
+      }
+    );
+
+    user.profile = uploadResult.secure_url;
     await user.save();
+
+    await fs.promises.unlink(`./upload/${profileName}`);
+
     res.status(201).json({
       message: "Photo has been uploaded",
     });
   });
 
-  writeStream.on("error", () => {
-    res.status(201).json({
-      message: "An Error while uploading profile photo",
-    });
+  writeStream.on("error", (err) => {
+    console.log(err);
   });
 
-  writeStream.write(profile.buffer);
+  writeStream.write(profileToUpload.buffer);
   writeStream.end();
 };
