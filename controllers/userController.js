@@ -1,9 +1,11 @@
 const validator = require("validator");
 const bcrypt = require("bcrypt");
 const cloudinary = require("cloudinary").v2;
-const fs = require("fs");
-const User = require("../models/userModel");
+const streamifier = require("streamifier");
 
+const User = require("../models/userModel");
+const AppError = require("../utility/appError");
+const catchAsyncError = require("../utility/catchAsyncError");
 require("dotenv").config();
 
 cloudinary.config({
@@ -12,176 +14,138 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_APISECRET,
 });
 
-// Getting All Users Informations
-exports.getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find();
+exports.getAllUsers = catchAsyncError(async (req, res, next) => {
+  const users = await User.find();
 
-    res.status(200).json({
-      totalUser: users.length,
-      data: users,
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: "Internal Server Error" });
+  res.status(200).json({
+    totalUser: users.length,
+    data: users,
+  });
+});
+
+exports.createUser = catchAsyncError(async (req, res, next) => {
+  const { name, email, password } = req.body;
+
+  if (!name || !email || !password) {
+    next(
+      new AppError(
+        "Email, Password and Name Required For Creating a Account",
+        400
+      )
+    );
   }
-};
 
-// Creating New User
-exports.createUser = async (req, res) => {
-  try {
-    const { name, email, password } = req.body;
-
-    const existingUser = await User.find({ email: email });
-
-    if (existingUser.length !== 0) {
-      res.status(400).json({ message: "User already Exists" });
-    }
-
-    if (!name || !email || !password) {
-      res.status(400).json({
-        message:
-          "To Create Account We Need Your Need Your Name, Email and Password",
-      });
-    }
-
-    if (password.length <= 6 || password.length >= 18) {
-      res
-        .status(400)
-        .json({ messsage: "Password should be between 6 and 18 characters" });
-    }
-
-    if (validator.default.isEmail(email) === false) {
-      res.status(400).json({ messsage: "Not a valid email" });
-    }
-
-    const normalizedName = name.toUpperCase().trim();
-    const normalizedEmail = validator.default.normalizeEmail(email);
-    const normalizedPassword = await bcrypt.hash(password, 12);
-
-    const newUser = await User.create({
-      name: normalizedName,
-      email: normalizedEmail,
-      password: normalizedPassword,
-    });
-
-    res.status(201).json({
-      message: "User has been Created",
-      data: newUser,
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: "Internal Server Error" });
+  if (password.length <= 6 || password.length >= 18) {
+    return next(
+      new AppError("Password should be between 6 and 18 characters", 400)
+    );
   }
-};
 
-// Getting User By Id
-exports.getUserById = async (req, res) => {
-  try {
-    const id = req.params.id;
-
-    const user = await User.find({ _id: id });
-
-    if (user.length === 0) {
-      res.status(404).json({ message: "User not founed With This Id" });
-    }
-
-    res.status(200).json({
-      data: user,
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: "Internal Server Error" });
+  if (validator.default.isEmail(email) === false) {
+    return next(new AppError("Email is not valid", 400));
   }
-};
 
-// Updating By Id
-exports.updateUserById = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const body = req.body;
+  const existingUser = await User.findOne({ email: email });
 
-    const existingUser = await User.find({ _id: id });
-
-    if (existingUser.length === 0) {
-      res.status(404).json({ message: "User not found with this Id." });
-    }
-
-    const updatedUser = await User.findByIdAndUpdate(id, body, {
-      new: true,
-    });
-
-    res.status(202).json({
-      data: updatedUser,
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: "Internal Server Error" });
+  if (existingUser) {
+    return next(new AppError("User already exists", 404));
   }
-};
 
-// Deleting User by Id
-exports.deleteUserById = async (req, res) => {
-  try {
-    const id = req.params.id;
+  const normalizedName = name.toUpperCase().trim();
+  const normalizedEmail = validator.default.normalizeEmail(email);
+  const normalizedPassword = await bcrypt.hash(password, 12);
 
-    const existingUser = await User.find({ _id: id });
+  const newUser = await User.create({
+    name: normalizedName,
+    email: normalizedEmail,
+    password: normalizedPassword,
+  });
 
-    if (existingUser.length === 0) {
-      res.status(404).json({
-        message: "User not found with this ID",
-      });
-    }
+  res.status(201).json({
+    message: "User has been created",
+    data: newUser,
+  });
+});
 
-    await User.deleteOne({ _id: id });
+exports.getUserById = catchAsyncError(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
 
-    res.status(204).json({
-      message: "User not has deleted",
-    });
-  } catch (err) {
-    console.log(err);
-    res.status(400).json({ message: "Internal Server Error" });
+  if (!user) {
+    return next(new AppError("User not found by this ID", 404));
   }
-};
+
+  res.status(200).json({
+    data: user,
+  });
+});
+
+exports.updateUserById = catchAsyncError(async (req, res, next) => {
+  const id = req.params.id;
+
+  const existingUser = await User.findById(id);
+
+  if (!existingUser) {
+    return next(new AppError("User not found with this ID", 404));
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(id, req.body, {
+    new: true,
+  });
+
+  res.status(202).json({
+    data: updatedUser,
+  });
+});
+
+exports.deleteUserById = catchAsyncError(async (req, res, next) => {
+  const id = req.params.id;
+
+  const existingUser = await User.findById(id);
+
+  if (!existingUser) {
+    return next(new AppError("User not found with this ID", 404));
+  }
+
+  await User.deleteOne({ _id: id });
+
+  res.status(204).json({
+    message: "User has been deleted",
+  });
+});
 
 // Upload Photo
-exports.uploadUserPhotoByID = async (req, res) => {
+exports.uploadUserPhotoByID = catchAsyncError(async (req, res, next) => {
   const id = req.params.id;
   const profileToUpload = req.file;
 
-  const user = await User.findOne({ _id: id });
+  const user = await User.findById(id);
 
   if (!user) {
-    res.status(400).json({ message: "User not found with this id" });
+    return next(new AppError("User not found with this id", 404));
   }
 
   const profileName = `${user._id}-${profileToUpload.originalname}`;
 
-  const writeStream = fs.createWriteStream(`./upload/${profileName}`);
-
-  writeStream.on("finish", async () => {
-    const uploadResult = await cloudinary.uploader.upload(
-      `./upload/${profileName}`,
-      {
-        folder: "Dev",
-        public_id: profileName,
+  const cloudinaryStream = cloudinary.uploader.upload_stream(
+    {
+      folder: "Dev",
+      public_id: profileName,
+    },
+    async (error, result) => {
+      if (error) {
+        console.log(error);
+        return next(new AppError("Error upload photo", 500));
+      } else {
+        user.profile = result.secure_url;
+        await user.save();
+        res.status(201).json({
+          status: "success",
+          message: "Profile photo has been uploaded",
+          data: user,
+        });
       }
-    );
+    }
+  );
 
-    user.profile = uploadResult.secure_url;
-    await user.save();
-
-    await fs.promises.unlink(`./upload/${profileName}`);
-
-    res.status(201).json({
-      message: "Photo has been uploaded",
-    });
-  });
-
-  writeStream.on("error", (err) => {
-    console.log(err);
-  });
-
-  writeStream.write(profileToUpload.buffer);
-  writeStream.end();
-};
+  streamifier.createReadStream(profileToUpload.buffer).pipe(cloudinaryStream);
+});
