@@ -1,0 +1,42 @@
+/*
+
+1. Instgram --> Login --> Dashboard
+2. Instgram --> Dashboard
+
+Normal Singup/login
+
+Day 1. Instgram --> Login --> { email: chirag, password: "1234" } ---> Unquie Secret-Code --> Broswer-Cookie or Mobile-Phone-Cache
+
+Day 2. Instgram --> Instgram Checks for Code ---> If its find the code --> Exact Your Information From the Code --> Automatic Login or Authenticate
+
+or If Its not finds the code --> Login Again
+
+
+*/
+
+// We are Going to JWT Authentication or Authorization
+
+const jwt = require("jsonwebtoken");
+
+// Payload
+const payload = {
+  name: "Chirag",
+  age: 21,
+  job: "Developer",
+  state: "Delhi",
+};
+
+const secret = "my-secret-key";
+
+const token = jwt.sign(payload, secret, { expiresIn: "1h" });
+
+const generateToken =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiQ2hpcmFnIiwiYWdlIjoyMSwiam9iIjoiRGV2ZWxvcGVyIiwic3RhdGUiOiJEZWxoaSIsImlhdCI6MTY3Nzg1OTQzOH0.VFebvc6jshpR5i5eADZSxyNx_TBrlhBrY--R5qB6V9U";
+
+jwt.verify(generateToken, "cat", (err, decoded) => {
+  if (err) {
+    console.log(err);
+  } else {
+    console.log(decoded);
+  }
+});

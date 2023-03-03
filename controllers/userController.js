@@ -27,7 +27,7 @@ exports.createUser = catchAsyncError(async (req, res, next) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
-    next(
+    return next(
       new AppError(
         "Email, Password and Name Required For Creating a Account",
         400
